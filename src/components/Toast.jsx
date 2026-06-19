@@ -17,16 +17,16 @@ function Toast({ message, type = 'success', onClose }) {
   }
 
   const colors = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    warning: 'bg-yellow-500',
-    info: 'bg-blue-500'
+    success: 'var(--success)',
+    error: 'var(--danger)',
+    warning: 'var(--warning)',
+    info: 'var(--accent)'
   }
 
   const Icon = icons[type] || CheckCircle
 
   return (
-    <div className={`fixed top-20 right-4 z-50 animate-slide-in ${colors[type]} text-white px-6 py-4 rounded-lg shadow-xl dark:shadow-2xl flex items-center gap-3 min-w-[300px]`}>
+    <div style={{ background: colors[type] }} className={`fixed top-20 right-4 z-50 animate-slide-in text-white px-6 py-4 rounded-lg shadow-xl flex items-center gap-3 min-w-[300px]`}>
       <Icon className="w-5 h-5 flex-shrink-0" />
       <p className="flex-1 font-medium">{message}</p>
       <button

@@ -1,169 +1,159 @@
-import { Server, CheckCircle, AlertTriangle, Bell, TrendingUp, Plus, Clock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Server, CheckCircle, AlertTriangle, Bell, TrendingUp, Plus, Clock, Loader2, ShieldCheck } from 'lucide-react'
+import Sparkline  from '../components/Sparkline'
+import LiveStats  from '../components/LiveStats'
+import LiveFeed   from '../components/LiveFeed'
 
-function Dashboard({ services, incidents, stats, onAddService, onViewIncidentDetails }) {
-  const getUptimeColor = (uptime) => {
-    if (uptime >= 99.5) return 'bg-green-500'
-    if (uptime >= 95) return 'bg-yellow-500'
-    return 'bg-red-500'
-  }
+function relativeTime(ts) {
+  if (!ts) return '—'
+  const s = Math.floor((Date.now() - ts) / 1000)
+  if (s < 5)  return 'Just now'
+  if (s < 60) return `${s}s ago`
+  return `${Math.floor(s / 60)}m ago`
+}
 
-  const getStatusIcon = (status) => {
-    return status === 'UP' ? (
-      <CheckCircle className="w-5 h-5 text-green-500" />
-    ) : (
-      <AlertTriangle className="w-5 h-5 text-red-600" />
-    )
-  }
+const STAT_CARDS = [
+  { key: 'totalServices',   label: 'Total Services',   icon: Server,      accent: '#3b82f6' },
+  { key: 'servicesUp',      label: 'Services Up',      icon: CheckCircle, accent: '#10b981' },
+  { key: 'servicesDown',    label: 'Services Down',    icon: AlertTriangle, accent: '#ef4444' },
+  { key: 'activeIncidents', label: 'Active Incidents', icon: Bell,        accent: '#f59e0b' },
+  { key: 'avgUptime',       label: 'Avg Uptime',       icon: TrendingUp,  accent: '#a78bfa', suffix: '%' },
+]
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'CRITICAL':
-        return 'bg-red-600 text-white shadow-lg shadow-red-500/50'
-      case 'WARNING':
-        return 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/50'
-      case 'INFO':
-        return 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-      default:
-        return 'bg-gray-500 text-white'
-    }
-  }
+function StatCard({ label, value, icon: Icon, accent }) {
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12 }}
+      className="p-5 transition-all duration-200 hover:border-[rgba(148,163,184,0.2)] group">
+      <div className="flex items-start justify-between">
+        <div>
+          <p style={{ color: 'var(--text-3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }} className="mb-2">{label}</p>
+          <p style={{ color: 'var(--text-1)', fontSize: 28, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', lineHeight: 1 }}>{value}</p>
+        </div>
+        <div style={{ background: `${accent}18`, borderRadius: 8, padding: 8 }} className="group-hover:scale-110 transition-transform">
+          <Icon style={{ color: accent }} className="w-5 h-5" />
+        </div>
+      </div>
+      <div style={{ marginTop: 12, height: 2, background: 'var(--border)', borderRadius: 1 }}>
+        <div style={{ height: '100%', width: '100%', background: `linear-gradient(90deg, ${accent}60, ${accent}20)`, borderRadius: 1 }} />
+      </div>
+    </div>
+  )
+}
 
-  const getStatusBadgeColor = (status) => {
-    return status === 'ACTIVE' 
-      ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
-      : 'bg-green-100 text-green-800 border-green-300'
-  }
+function StatusBadge({ service }) {
+  if (service.isChecking) return (
+    <div className="flex items-center gap-1.5">
+      <Loader2 style={{ color: 'var(--blue-text)' }} className="w-3.5 h-3.5 animate-spin" />
+      <span style={{ color: 'var(--blue-text)', fontSize: 11, fontWeight: 600 }}>CHECKING</span>
+    </div>
+  )
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`status-dot ${service.status === 'UP' ? 'up' : 'down'}`} />
+      <span style={{ color: service.status === 'UP' ? 'var(--green-text)' : 'var(--red-text)', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
+        {service.status}
+      </span>
+    </div>
+  )
+}
+
+function Dashboard({ services, incidents, stats, events = [], onAddService, onViewIncidentDetails }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const getSeverityStyle = (severity) => ({
+    CRITICAL: { background: 'var(--red-bg)', color: 'var(--red-text)', border: '1px solid var(--red-border)' },
+    WARNING:  { background: 'var(--yellow-bg)', color: 'var(--yellow-text)', border: '1px solid var(--yellow-border)' },
+    INFO:     { background: 'var(--blue-bg)', color: 'var(--blue-text)', border: '1px solid var(--blue-border)' },
+  }[severity] || { background: 'var(--bg-raised)', color: 'var(--text-2)', border: '1px solid var(--border)' })
+
+  const getStatusStyle = (status) =>
+    status === 'ACTIVE'
+      ? { background: 'var(--yellow-bg)', color: 'var(--yellow-text)', border: '1px solid var(--yellow-border)' }
+      : { background: 'var(--green-bg)', color: 'var(--green-text)', border: '1px solid var(--green-border)' }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border-l-4 border-blue-600 dark:border-blue-400 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1 font-medium">Total Services</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalServices}</p>
-            </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <Server className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        <div className="bg-white rounded-xl border-l-4 border-green-500 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1 font-medium">Services Up</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.servicesUp}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-        </div>
+      {/* Live Stats Banner */}
+      <LiveStats services={services} events={events} incidents={incidents} />
 
-        <div className="bg-white rounded-xl border-l-4 border-red-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1 font-medium">Services Down</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.servicesDown}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-l-4 border-yellow-500 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1 font-medium">Active Incidents</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.activeIncidents}</p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <Bell className="w-8 h-8 text-yellow-500" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border-l-4 border-purple-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1 font-medium">Avg Uptime %</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.avgUptime}%</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <TrendingUp className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-        </div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        {STAT_CARDS.map(card => (
+          <StatCard
+            key={card.key}
+            label={card.label}
+            value={`${stats[card.key]}${card.suffix || ''}`}
+            icon={card.icon}
+            accent={card.accent}
+          />
+        ))}
       </div>
 
       {/* Services Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg mb-8 overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Services</h2>
-          <button
-            onClick={onAddService}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            Add Service
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12 }} className="mb-6 overflow-hidden">
+        <div style={{ borderBottom: '1px solid var(--border)', padding: '16px 20px' }} className="flex items-center justify-between">
+          <div>
+            <h2 style={{ color: 'var(--text-1)', fontSize: 14, fontWeight: 600, margin: 0 }}>Services</h2>
+            <p style={{ color: 'var(--text-3)', fontSize: 12, margin: '2px 0 0' }}>All monitored endpoints</p>
+          </div>
+          <button onClick={onAddService}
+            style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            className="hover:bg-blue-500 transition-colors">
+            <Plus className="w-3.5 h-3.5" />Add Service
           </button>
         </div>
-        
+
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+          <table className="w-full pro-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Service Name & URL</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Uptime</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Response Time</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Check</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
+                {['Service', 'Type', 'Status', 'Response', 'Trend', 'Uptime', 'Last Check'].map(h => (
+                  <th key={h} style={{ background: 'transparent' }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {services.map((service) => (
-                <tr key={service.id} className="hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900 dark:text-white">{service.name}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{service.url}</div>
-                    </div>
+            <tbody>
+              {services.map(svc => (
+                <tr key={svc.id}>
+                  <td>
+                    <div style={{ color: 'var(--text-1)', fontSize: 13, fontWeight: 500 }}>{svc.name}</div>
+                    <div style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 2 }} className="font-mono truncate max-w-[180px]">{svc.url}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                      {service.type}
+                  <td>
+                    <span style={{ background: 'var(--bg-raised)', color: 'var(--text-2)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                      {svc.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusIcon(service.status)}
+                  <td><StatusBadge service={svc} /></td>
+                  <td>
+                    <span style={{ color: svc.status === 'UP' ? 'var(--green-text)' : 'var(--text-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 600 }}>
+                      {svc.status === 'UP' ? `${svc.responseTime}ms` : '—'}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gray-900 w-16">{service.uptime}%</span>
-                      <div className="w-32 h-2.5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-                        <div 
-                          className={`h-full ${getUptimeColor(service.uptime)} transition-all duration-500`}
-                          style={{ width: `${service.uptime}%` }}
-                        ></div>
+                  <td>
+                    <Sparkline data={svc.history || []} status={svc.status} width={100} height={32} />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 48, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2,
+                          width: `${svc.checkCount ? svc.uptime : 0}%`,
+                          background: svc.uptime >= 99 ? 'var(--success)' : svc.uptime >= 95 ? 'var(--warning)' : 'var(--danger)'
+                        }} />
                       </div>
+                      <span style={{ color: svc.checkCount ? (svc.uptime >= 99 ? 'var(--success)' : svc.uptime >= 95 ? 'var(--warning)' : 'var(--danger)') : 'var(--text-3)', fontSize: 12, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace' }}>
+                        {svc.checkCount ? `${svc.uptime}%` : '—'}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {service.responseTime}ms
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      {service.lastCheck}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {service.location}
+                  <td>
+                    <span style={{ color: 'var(--text-3)', fontSize: 12 }}>{relativeTime(svc.lastCheckedAt)}</span>
                   </td>
                 </tr>
               ))}
@@ -172,54 +162,45 @@ function Dashboard({ services, incidents, stats, onAddService, onViewIncidentDet
         </div>
       </div>
 
-      {/* Recent Incidents */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-          <h2 className="text-xl font-bold text-gray-900">Recent Incidents</h2>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          {incidents.slice(0, 5).map((incident) => (
-            <div
-              key={incident.id}
-              className="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-white to-gray-50/50"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${getSeverityColor(incident.severity)}`}>
-                      {incident.severity}
+      {/* Bottom Row: Feed + Incidents */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <LiveFeed events={events} />
+
+        {/* Incidents */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12 }} className="overflow-hidden">
+          <div style={{ borderBottom: '1px solid var(--border)', padding: '16px 20px' }}>
+            <h2 style={{ color: 'var(--text-1)', fontSize: 14, fontWeight: 600, margin: 0 }}>Recent Incidents</h2>
+          </div>
+          <div className="p-4 space-y-3">
+            {incidents.length === 0 ? (
+              <div className="py-10 flex flex-col items-center gap-2">
+                <ShieldCheck style={{ color: 'var(--success)' }} className="w-8 h-8" />
+                <p style={{ color: 'var(--text-3)', fontSize: 13 }}>All systems operational</p>
+              </div>
+            ) : incidents.slice(0, 4).map(inc => (
+              <div key={inc.id}
+                style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}
+                className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span style={{ ...getSeverityStyle(inc.severity), borderRadius: 4, padding: '1px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em' }}>
+                      {inc.severity}
                     </span>
-                    <span className={`px-3 py-1.5 text-xs font-semibold rounded-lg border ${getStatusBadgeColor(incident.status)}`}>
-                      {incident.status}
+                    <span style={{ ...getStatusStyle(inc.status), borderRadius: 4, padding: '1px 8px', fontSize: 10, fontWeight: 600 }}>
+                      {inc.status}
                     </span>
-                    <span className="text-sm text-gray-500 font-mono">#{incident.id}</span>
                   </div>
-                  
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    {incident.serviceName}
-                  </h3>
-                  
-                  <p className="text-sm text-gray-700 mb-3 leading-relaxed">{incident.message}</p>
-                  
-                  <div className="flex items-center gap-6 text-sm text-gray-600">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-4 h-4" />
-                      Started: <span className="font-medium">{incident.started}</span>
-                    </div>
-                    <div>Duration: <span className="font-medium">{incident.duration}</span></div>
-                  </div>
+                  <p style={{ color: 'var(--text-1)', fontSize: 13, fontWeight: 500 }} className="truncate">{inc.serviceName}</p>
+                  <p style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 2 }} className="truncate">{inc.message}</p>
                 </div>
-                
-                <button 
-                  onClick={() => onViewIncidentDetails(incident)}
-                  className="px-5 py-2.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 border border-blue-200 hover:border-blue-300"
-                >
-                  View Details
+                <button onClick={() => onViewIncidentDetails(inc)}
+                  style={{ color: 'var(--blue-text)', fontSize: 11, fontWeight: 500, background: 'var(--blue-bg)', border: '1px solid var(--blue-border)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
+                  className="hover:bg-[var(--hover-bg)] transition-colors">
+                  Details
                 </button>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

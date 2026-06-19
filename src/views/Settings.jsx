@@ -1,153 +1,133 @@
-import { RefreshCw, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
+import { RefreshCw, Copy, Check, Bell, MessageSquare, Webhook, Key, Server, Shield } from 'lucide-react'
+
+function Toggle({ checked, onChange }) {
+  return (
+    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only" />
+      <div style={{
+        width: 40, height: 22, borderRadius: 11, background: checked ? 'var(--blue-text)' : 'var(--border)',
+        border: `1px solid ${checked ? 'var(--blue-text)' : 'var(--border)'}`,
+        position: 'relative', transition: 'all 0.2s',
+        boxShadow: checked ? '0 0 10px rgba(59,130,246,0.3)' : 'none'
+      }}>
+        <div style={{
+          position: 'absolute', top: 2, left: checked ? 20 : 2,
+          width: 16, height: 16, borderRadius: '50%', background: '#fff',
+          transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+        }} />
+      </div>
+    </label>
+  )
+}
+
+function Section({ title, icon: Icon, children }) {
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ background: 'var(--blue-bg)', borderRadius: 7, padding: 7 }}>
+          <Icon style={{ color: 'var(--blue-text)' }} className="w-4 h-4" />
+        </div>
+        <h2 style={{ color: 'var(--text-1)', fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h2>
+      </div>
+      <div style={{ padding: '8px 0' }}>{children}</div>
+    </div>
+  )
+}
+
+function ToggleRow({ label, sub, checked, onChange }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px' }}
+      className="hover:bg-[var(--hover-bg)] transition-colors">
+      <div>
+        <p style={{ color: 'var(--text-2)', fontSize: 13, fontWeight: 500, margin: 0 }}>{label}</p>
+        <p style={{ color: 'var(--text-3)', fontSize: 12, margin: '2px 0 0' }}>{sub}</p>
+      </div>
+      <Toggle checked={checked} onChange={onChange} />
+    </div>
+  )
+}
 
 function Settings() {
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [smsNotifications, setSmsNotifications] = useState(false)
-  const [webhookNotifications, setWebhookNotifications] = useState(true)
-  const [copied, setCopied] = useState(false)
+  const [email,   setEmail]   = useState(true)
+  const [sms,     setSms]     = useState(false)
+  const [webhook, setWebhook] = useState(true)
+  const [copied,  setCopied]  = useState(false)
 
-  const handleRegenerateApiKey = () => {
-    if (window.confirm('Are you sure you want to regenerate the API key? The current key will be invalidated.')) {
-      // In a real app, this would call an API
-      alert('API key regenerated successfully!')
-    }
-  }
-
-  const handleCopyApiKey = () => {
+  const handleCopy = () => {
     navigator.clipboard.writeText('hmp_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleRegen = () => {
+    if (window.confirm('Regenerate API key? The current key will be invalidated.')) {
+      alert('API key regenerated!')
+    }
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-          Settings
-        </h1>
-        <p className="text-sm text-gray-600 mt-2">Configure your monitoring preferences</p>
+        <h1 style={{ color: 'var(--text-1)', fontSize: 22, fontWeight: 700, margin: 0 }}>Settings</h1>
+        <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '4px 0 0' }}>Configure your monitoring preferences</p>
       </div>
 
-      {/* Alert Configuration */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-          <div className="w-1 h-6 bg-gradient-to-b from-blue-600 to-blue-800 rounded"></div>
-          Alert Configuration
-        </h2>
-        
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
-            <div className="flex-1">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">
-                Email Notifications
-              </h3>
-              <p className="text-sm text-gray-600">
-                Receive incident alerts and status updates via email
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={emailNotifications}
-                onChange={(e) => setEmailNotifications(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-blue-700"></div>
-            </label>
+      {/* Notifications */}
+      <Section title="Alert Notifications" icon={Bell}>
+        <ToggleRow label="Email Notifications"   sub="Receive incident alerts and status updates via email" checked={email}   onChange={setEmail} />
+        <ToggleRow label="SMS Notifications"     sub="Receive critical alerts via SMS messages"            checked={sms}     onChange={setSms} />
+        <ToggleRow label="Webhook Notifications" sub="Send incident notifications to webhook endpoints"    checked={webhook} onChange={setWebhook} />
+      </Section>
+
+      {/* API Config */}
+      <Section title="API Configuration" icon={Key}>
+        <div style={{ padding: '12px 20px 20px' }}>
+          <label style={{ color: 'var(--text-3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>API Key</label>
+          <div className="flex items-center gap-2">
+            <input readOnly value="hmp_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4"
+              style={{ flex: 1, background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-2)', fontSize: 12, padding: '9px 12px', fontFamily: 'JetBrains Mono, monospace', outline: 'none' }} />
+            <button onClick={handleCopy}
+              style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', cursor: 'pointer', color: copied ? 'var(--success)' : 'var(--text-2)', transition: 'all 0.15s' }}
+              title="Copy API Key">
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+            <button onClick={handleRegen}
+              style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+              className="hover:text-[var(--text-1)] hover:border-[var(--border-hover)] transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />Regenerate
+            </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
-            <div className="flex-1">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">
-                SMS Notifications
-              </h3>
-              <p className="text-sm text-gray-600">
-                Receive critical alerts via SMS messages
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={smsNotifications}
-                onChange={(e) => setSmsNotifications(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-blue-700"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors">
-            <div className="flex-1">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">
-                Webhook Notifications
-              </h3>
-              <p className="text-sm text-gray-600">
-                Send incident notifications to configured webhook endpoints
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={webhookNotifications}
-                onChange={(e) => setWebhookNotifications(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-blue-700"></div>
-            </label>
+          <div style={{ marginTop: 16 }}>
+            <label style={{ color: 'var(--text-3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Server URL</label>
+            <input readOnly value="wss://monitor.example.com:8443"
+              style={{ width: '100%', background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-2)', fontSize: 12, padding: '9px 12px', fontFamily: 'JetBrains Mono, monospace', outline: 'none', boxSizing: 'border-box' }} />
           </div>
         </div>
-      </div>
+      </Section>
 
-      {/* API Configuration */}
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-          <div className="w-1 h-6 bg-gradient-to-b from-blue-600 to-blue-800 rounded"></div>
-          API Configuration
-        </h2>
-        
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              API Key
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                readOnly
-                value="hmp_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4"
-                className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-600 font-mono text-sm"
-              />
-              <button
-                onClick={handleCopyApiKey}
-                className="px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                title="Copy API Key"
-              >
-                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={handleRegenerateApiKey}
-                className="flex items-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Regenerate
-              </button>
+      {/* Monitor Config */}
+      <Section title="Monitor Settings" icon={Shield}>
+        <div style={{ padding: '12px 20px 20px' }} className="space-y-4">
+          {[
+            { label: 'Check Interval',      sub: 'How often to check each service',          value: '30 seconds' },
+            { label: 'Request Timeout',     sub: 'Max wait time before marking as DOWN',      value: '8 seconds' },
+            { label: 'Protocol Version',    sub: 'Health Monitor Protocol version in use',    value: 'HMP v1.0' },
+            { label: 'History Points',      sub: 'Sparkline data points retained per service',value: '20 checks' },
+          ].map(row => (
+            <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <p style={{ color: 'var(--text-2)', fontSize: 13, fontWeight: 500, margin: 0 }}>{row.label}</p>
+                <p style={{ color: 'var(--text-3)', fontSize: 12, margin: '2px 0 0' }}>{row.sub}</p>
+              </div>
+              <span style={{ color: 'var(--blue-text)', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: 'var(--blue-bg)', border: '1px solid var(--blue-border)', borderRadius: 5, padding: '3px 9px' }}>
+                {row.value}
+              </span>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Server URL
-            </label>
-            <input
-              type="text"
-              readOnly
-              value="wss://monitor.example.com:8443"
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-lg text-gray-600 font-mono text-sm"
-            />
-          </div>
+          ))}
         </div>
-      </div>
+      </Section>
     </div>
   )
 }

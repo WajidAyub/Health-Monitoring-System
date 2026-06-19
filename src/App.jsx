@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Header from './components/Header'
 import NavigationTabs from './components/NavigationTabs'
@@ -14,169 +14,162 @@ import Signup from './views/Signup'
 import AddServiceModal from './components/AddServiceModal'
 import IncidentDetailsModal from './components/IncidentDetailsModal'
 import Toast from './components/Toast'
+import { useMonitor } from './hooks/useMonitor'
 
-// Mock data
-const initialServices = [
+// Real publicly-accessible URLs for live monitoring
+const INITIAL_SERVICES = [
   {
     id: 'srv_001',
-    name: 'Production API Server',
-    url: 'https://api.example.com',
+    name: 'GitHub API',
+    url: 'https://api.github.com',
     type: 'HTTPS',
     status: 'UP',
     uptime: 99.95,
-    responseTime: 245,
+    responseTime: 0,
     location: 'US-East',
-    lastCheck: '2 mins ago'
+    lastCheck: 'Pending…'
   },
   {
     id: 'srv_002',
-    name: 'Database Primary',
-    url: 'db.example.com:5432',
-    type: 'TCP',
+    name: 'Cloudflare DNS',
+    url: 'https://1.1.1.1',
+    type: 'HTTPS',
     status: 'UP',
     uptime: 99.99,
-    responseTime: 12,
-    location: 'US-East',
-    lastCheck: '1 min ago'
+    responseTime: 0,
+    location: 'Global',
+    lastCheck: 'Pending…'
   },
   {
     id: 'srv_003',
-    name: 'Web Application',
-    url: 'https://www.example.com',
-    type: 'HTTP',
-    status: 'DOWN',
-    uptime: 98.50,
+    name: 'JSONPlaceholder API',
+    url: 'https://jsonplaceholder.typicode.com/todos/1',
+    type: 'HTTPS',
+    status: 'UP',
+    uptime: 99.80,
     responseTime: 0,
     location: 'EU-West',
-    lastCheck: '5 mins ago'
+    lastCheck: 'Pending…'
   },
   {
     id: 'srv_004',
-    name: 'CDN Server',
-    url: 'https://cdn.example.com',
+    name: 'HTTPBin Test',
+    url: 'https://httpbin.org/get',
     type: 'HTTPS',
     status: 'UP',
-    uptime: 99.92,
-    responseTime: 89,
+    uptime: 99.50,
+    responseTime: 0,
     location: 'US-West',
-    lastCheck: '3 mins ago'
+    lastCheck: 'Pending…'
   }
 ]
 
-const initialIncidents = [
-  {
-    id: 'inc_001',
-    serviceId: 'srv_003',
-    serviceName: 'Web Application',
-    severity: 'CRITICAL',
-    status: 'ACTIVE',
-    message: 'Connection timeout - Service unreachable',
-    started: '15 mins ago',
-    duration: '15m'
-  },
-  {
-    id: 'inc_002',
-    serviceId: 'srv_001',
-    serviceName: 'Production API Server',
-    severity: 'WARNING',
-    status: 'RESOLVED',
-    message: 'High response time detected',
-    started: '2 hours ago',
-    duration: '5m'
-  }
-]
+const INITIAL_INCIDENTS = []
 
-function App() {
-  // Authentication state
+function AppInner() {
   const [user, setUser] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
   const [showSignup, setShowSignup] = useState(false)
-  
-  // App state
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [services, setServices] = useState(initialServices)
-  const [incidents, setIncidents] = useState(initialIncidents)
+  const [incidents, setIncidents] = useState(INITIAL_INCIDENTS)
   const [showAddService, setShowAddService] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState(null)
   const [toast, setToast] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [newService, setNewService] = useState({
-    name: '',
-    type: 'HTTP',
-    url: '',
-    checkInterval: 300,
-    timeout: 10
+    name: '', type: 'HTTP', url: '', checkInterval: 300, timeout: 10
   })
 
-  // Check for saved user on mount
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type })
+  }, [])
+
+  // Status-change handler for auto incident creation/resolution
+  const handleStatusChange = useCallback(({ serviceId, serviceName, from, to }) => {
+    if (to === 'DOWN') {
+      const newIncident = {
+        id: `inc_${Date.now()}`,
+        serviceId,
+        serviceName,
+        severity: 'CRITICAL',
+        status: 'ACTIVE',
+        message: 'Service unreachable — connection timeout or network error',
+        started: 'Just now',
+        startedAt: Date.now(),
+        duration: '0m'
+      }
+      setIncidents(prev => [newIncident, ...prev])
+      showToast(`🚨 ${serviceName} is DOWN!`, 'error')
+    } else if (to === 'UP' && from === 'DOWN') {
+      setIncidents(prev =>
+        prev.map(inc =>
+          inc.serviceId === serviceId && inc.status === 'ACTIVE'
+            ? { ...inc, status: 'RESOLVED' }
+            : inc
+        )
+      )
+      showToast(`✅ ${serviceName} is back UP`, 'success')
+    }
+  }, [showToast])
+
+  const { liveServices, events, addAndMonitorService, checkNow, removeService } = useMonitor(
+    INITIAL_SERVICES,
+    handleStatusChange
+  )
+
+  // Restore session
   useEffect(() => {
-    const savedUser = localStorage.getItem('healthMonitorUser')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    const saved = localStorage.getItem('healthMonitorUser')
+    if (saved) {
+      setUser(JSON.parse(saved))
       setShowLogin(false)
     }
   }, [])
 
   const handleAddService = () => {
     if (!newService.name.trim() || !newService.url.trim()) {
-      setToast({ message: 'Please fill in all required fields', type: 'error' })
+      showToast('Please fill in all required fields', 'error')
       return
     }
-
     const service = {
-      id: `srv_${String(services.length + 1).padStart(3, '0')}`,
+      id: `srv_${Date.now()}`,
       name: newService.name,
       url: newService.url,
       type: newService.type,
       status: 'UP',
       uptime: 100,
-      responseTime: Math.floor(Math.random() * 500),
-      location: 'US-East',
-      lastCheck: 'Just now'
+      responseTime: 0,
+      location: 'Custom',
+      lastCheck: 'Pending…'
     }
-
-    setServices([...services, service])
+    addAndMonitorService(service)
     setShowAddService(false)
-    setNewService({
-      name: '',
-      type: 'HTTP',
-      url: '',
-      checkInterval: 300,
-      timeout: 10
-    })
-    setToast({ message: 'Service added successfully!', type: 'success' })
+    setNewService({ name: '', type: 'HTTP', url: '', checkInterval: 300, timeout: 10 })
+    showToast('Service added — first check in progress…')
   }
 
   const handleRefresh = () => {
     setIsRefreshing(true)
-    // Simulate refresh
     setTimeout(() => {
       setIsRefreshing(false)
-      setToast({ message: 'Data refreshed successfully', type: 'success' })
-    }, 1000)
+      showToast('Next auto-check will run in 30 s')
+    }, 800)
   }
 
   const handleAcknowledgeIncident = (incidentId) => {
-    setIncidents(incidents.map(inc => 
-      inc.id === incidentId ? { ...inc, status: 'RESOLVED' } : inc
-    ))
-    setToast({ message: 'Incident acknowledged', type: 'success' })
+    setIncidents(prev =>
+      prev.map(inc => inc.id === incidentId ? { ...inc, status: 'RESOLVED' } : inc)
+    )
+    showToast('Incident acknowledged')
   }
 
   const calculateStats = () => {
-    const totalServices = services.length
-    const servicesUp = services.filter(s => s.status === 'UP').length
-    const servicesDown = services.filter(s => s.status === 'DOWN').length
-    const avgUptime = services.reduce((sum, s) => sum + s.uptime, 0) / totalServices || 0
+    const totalServices  = liveServices.length
+    const servicesUp     = liveServices.filter(s => s.status === 'UP').length
+    const servicesDown   = liveServices.filter(s => s.status === 'DOWN').length
+    const avgUptime      = liveServices.reduce((sum, s) => sum + s.uptime, 0) / (totalServices || 1)
     const activeIncidents = incidents.filter(i => i.status === 'ACTIVE').length
-
-    return {
-      totalServices,
-      servicesUp,
-      servicesDown,
-      avgUptime: avgUptime.toFixed(2),
-      activeIncidents
-    }
+    return { totalServices, servicesUp, servicesDown, avgUptime: avgUptime.toFixed(2), activeIncidents }
   }
 
   const stats = calculateStats()
@@ -186,7 +179,7 @@ function App() {
     localStorage.setItem('healthMonitorUser', JSON.stringify(userData))
     setShowLogin(false)
     setShowSignup(false)
-    setToast({ message: 'Welcome back!', type: 'success' })
+    showToast('Welcome back!')
   }
 
   const handleSignup = (userData) => {
@@ -194,7 +187,7 @@ function App() {
     localStorage.setItem('healthMonitorUser', JSON.stringify(userData))
     setShowLogin(false)
     setShowSignup(false)
-    setToast({ message: 'Account created successfully!', type: 'success' })
+    showToast('Account created successfully!')
   }
 
   const handleLogout = () => {
@@ -203,38 +196,27 @@ function App() {
     setShowLogin(true)
     setShowSignup(false)
     setActiveTab('dashboard')
-    setToast({ message: 'Logged out successfully', type: 'success' })
+    showToast('Logged out successfully')
   }
 
   const handleUpdateUser = (updatedUser) => {
     setUser(updatedUser)
     localStorage.setItem('healthMonitorUser', JSON.stringify(updatedUser))
-    setToast({ message: 'Profile updated successfully!', type: 'success' })
+    showToast('Profile updated successfully!')
   }
 
-  const handleNavigate = (tab) => {
-    setActiveTab(tab)
-  }
-
-  // Show login/signup if not authenticated
   if (!user) {
     return (
       <ThemeProvider>
         {showSignup ? (
           <Signup
             onSignup={handleSignup}
-            onSwitchToLogin={() => {
-              setShowSignup(false)
-              setShowLogin(true)
-            }}
+            onSwitchToLogin={() => { setShowSignup(false); setShowLogin(true) }}
           />
         ) : (
           <Login
             onLogin={handleLogin}
-            onSwitchToSignup={() => {
-              setShowLogin(false)
-              setShowSignup(true)
-            }}
+            onSwitchToSignup={() => { setShowLogin(false); setShowSignup(true) }}
           />
         )}
       </ThemeProvider>
@@ -243,81 +225,75 @@ function App() {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col transition-colors duration-200">
-      <Header 
-        onRefresh={handleRefresh} 
-        isRefreshing={isRefreshing} 
-        onNavigate={handleNavigate}
-        user={user}
-        onLogout={handleLogout}
-        incidents={incidents}
-        services={services}
-      />
-      <NavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <main className="flex-1">
-        {activeTab === 'dashboard' && (
-          <Dashboard 
-            services={services} 
-            incidents={incidents} 
-            stats={stats}
-            onAddService={() => setShowAddService(true)}
-            onViewIncidentDetails={(incident) => setSelectedIncident(incident)}
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }} className="flex flex-col">
+        <Header
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigate={setActiveTab}
+          user={user}
+          onLogout={handleLogout}
+          incidents={incidents}
+          services={liveServices}
+        />
+        <NavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        <main className="flex-1">
+          {activeTab === 'dashboard' && (
+            <Dashboard
+              services={liveServices}
+              incidents={incidents}
+              stats={stats}
+              events={events}
+              onAddService={() => setShowAddService(true)}
+              onViewIncidentDetails={setSelectedIncident}
+            />
+          )}
+          {activeTab === 'services' && (
+            <Services
+              services={liveServices}
+              onAddService={() => setShowAddService(true)}
+              onCheckNow={checkNow}
+              onRemove={removeService}
+            />
+          )}
+          {activeTab === 'incidents' && (
+            <Incidents
+              incidents={incidents}
+              services={liveServices}
+              onAcknowledge={handleAcknowledgeIncident}
+              onViewDetails={setSelectedIncident}
+            />
+          )}
+          {activeTab === 'reports'  && <Reports services={liveServices} incidents={incidents} />}
+          {activeTab === 'settings' && <Settings />}
+          {activeTab === 'profile'  && <Profile user={user} onUpdateUser={handleUpdateUser} />}
+        </main>
+
+        <Footer />
+
+        {showAddService && (
+          <AddServiceModal
+            newService={newService}
+            setNewService={setNewService}
+            onClose={() => setShowAddService(false)}
+            onAdd={handleAddService}
           />
         )}
-        {activeTab === 'services' && (
-          <Services 
-            services={services}
-            onAddService={() => setShowAddService(true)}
+
+        {selectedIncident && (
+          <IncidentDetailsModal
+            incident={selectedIncident}
+            service={liveServices.find(s => s.id === selectedIncident.serviceId)}
+            onClose={() => setSelectedIncident(null)}
           />
         )}
-        {activeTab === 'incidents' && (
-          <Incidents 
-            incidents={incidents}
-            services={services}
-            onAcknowledge={handleAcknowledgeIncident}
-            onViewDetails={(incident) => setSelectedIncident(incident)}
-          />
+
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
-        {activeTab === 'reports' && (
-          <Reports services={services} incidents={incidents} />
-        )}
-        {activeTab === 'settings' && <Settings />}
-        {activeTab === 'profile' && (
-          <Profile user={user} onUpdateUser={handleUpdateUser} />
-        )}
-      </main>
-
-      <Footer />
-
-      {showAddService && (
-        <AddServiceModal
-          newService={newService}
-          setNewService={setNewService}
-          onClose={() => setShowAddService(false)}
-          onAdd={handleAddService}
-        />
-      )}
-
-      {selectedIncident && (
-        <IncidentDetailsModal
-          incident={selectedIncident}
-          service={services.find(s => s.id === selectedIncident.serviceId)}
-          onClose={() => setSelectedIncident(null)}
-        />
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
       </div>
     </ThemeProvider>
   )
 }
 
-export default App
-
+export default AppInner

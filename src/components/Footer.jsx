@@ -1,25 +1,25 @@
 function Footer() {
   return (
-    <footer className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 mt-auto shadow-sm transition-colors duration-200">
+    <footer style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border)' }} className="mt-auto transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Health Monitor System <span className="text-blue-600 dark:text-blue-400">v1.0</span> | Protocol: <span className="text-blue-600 dark:text-blue-400">HMP v1.0</span>
+            <p style={{ color: 'var(--text-1)' }} className="text-sm font-medium">
+              Health Monitor System <span style={{ color: 'var(--blue-text)' }}>v1.0</span> | Protocol: <span style={{ color: 'var(--blue-text)' }}>HMP v1.0</span>
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p style={{ color: 'var(--text-3)' }} className="text-xs mt-1">
               Computer Networks (Comp-352) - Fall 2025
             </p>
           </div>
           
           <div className="flex gap-6 text-sm">
-            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 font-medium">
+            <a href="#" style={{ color: 'var(--text-2)' }} className="hover:text-[var(--blue-text)] transition-colors duration-200 font-medium">
               Documentation
             </a>
-            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 font-medium">
+            <a href="#" style={{ color: 'var(--text-2)' }} className="hover:text-[var(--blue-text)] transition-colors duration-200 font-medium">
               API Reference
             </a>
-            <a href="#" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 font-medium">
+            <a href="#" style={{ color: 'var(--text-2)' }} className="hover:text-[var(--blue-text)] transition-colors duration-200 font-medium">
               Support
             </a>
           </div>

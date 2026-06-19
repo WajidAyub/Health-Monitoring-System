@@ -24,15 +24,15 @@ function UserMenuDropdown({ onClose, onNavigate, onLogout, user }) {
   }
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 animate-fade-in">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} className="absolute right-0 top-full mt-2 w-64 rounded-xl shadow-2xl z-50 animate-fade-in">
+      <div style={{ borderBottom: '1px solid var(--border)' }} className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+          <div style={{ background: 'var(--blue-bg)', color: 'var(--blue-text)' }} className="w-10 h-10 rounded-full flex items-center justify-center font-semibold shadow-md">
             {user?.avatar || 'A'}
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{user?.name || 'User'}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email || 'user@example.com'}</p>
+            <p style={{ color: 'var(--text-1)' }} className="text-sm font-semibold">{user?.name || 'User'}</p>
+            <p style={{ color: 'var(--text-3)' }} className="text-xs">{user?.email || 'user@example.com'}</p>
           </div>
         </div>
       </div>
@@ -44,24 +44,25 @@ function UserMenuDropdown({ onClose, onNavigate, onLogout, user }) {
             <button
               key={index}
               onClick={() => handleItemClick(item.action)}
+              style={{ color: item.danger ? 'var(--red-text)' : 'var(--text-2)' }}
               className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
                 item.danger
-                  ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ? 'hover:bg-[var(--red-bg)]'
+                  : 'hover:bg-[var(--hover-bg)] hover:text-[var(--text-1)]'
               }`}
             >
               <div className="flex items-center gap-3">
                 <Icon className="w-4 h-4" />
                 <span className="font-medium">{item.label}</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+              <ChevronRight style={{ color: 'var(--text-3)' }} className="w-4 h-4" />
             </button>
           )
         })}
       </div>
       
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+      <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-raised)' }} className="p-3 rounded-b-xl">
+        <p style={{ color: 'var(--text-3)' }} className="text-xs text-center">
           Health Monitor v1.0
         </p>
       </div>
